@@ -1,0 +1,16 @@
+1. Files proc.c, proc.h
+2. proc.h
+	
+	Struct proc
+		Added two entities
+		int priority
+		double rounds
+3. proc.c
+	
+	allocproc()
+		initialisation
+		priority = 1;
+		rounds = 0.001
+	
+	scheduler()
+		priority scheduler code
