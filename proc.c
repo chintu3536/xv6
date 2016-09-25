@@ -6,6 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "stdbool.h"
 
 struct {
   struct spinlock lock;
@@ -267,15 +268,15 @@ wait(void)
 void
 scheduler(void)
 {
-  struct proc *p, *q;
-
+  struct proc *p, *q, *prev_proc;
+  bool first = true;
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    double Max_priority = 1;
+    double Max_priority = 0;
     int count=0;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
@@ -283,7 +284,7 @@ scheduler(void)
        else{
        	count++;
        	double wt = (p->priority)/(p->rounds);
-       	if(wt>=Max_priority){
+       	if(wt>Max_priority){
        		Max_priority = wt;
        		q=p;
        	}
@@ -293,6 +294,21 @@ scheduler(void)
 	if(count == 0){
 		release(&ptable.lock);
 		continue;
+	}
+	if(!first){
+		p = prev_proc;
+		p++;
+		for(; p< &ptable.proc[NPROC]; p++){
+			if(p->state != RUNNABLE)
+				continue;
+			else{
+				double wt = (p->priority)/(p->rounds);
+				if(wt == Max_priority){
+					q=p;
+					break;
+				}
+			}	
+		}
 	}
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -308,7 +324,11 @@ scheduler(void)
       else{
       	q->rounds = q->rounds + 1;	
       }
-
+      if(q->rounds>q->priority){
+      	q->rounds = 0.001;
+      }
+      prev_proc = proc;
+	  first = false;
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
@@ -487,3 +507,13 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+int
+setprio(int p)
+{
+  acquire(&ptable.lock);
+  proc->priority = p;
+  release(&ptable.lock);
+  return 0;
+} 
+
