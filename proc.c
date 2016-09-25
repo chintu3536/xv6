@@ -25,7 +25,7 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
-}
+}	
 
 //PAGEBREAK: 32
 // Look in the process table for an UNUSED proc.
@@ -48,9 +48,9 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-  release(&ptable.lock);
   p->priority = 1;
-  p->rounds=0.001;
+  p->rounds=1;
+  release(&ptable.lock);
 
   // Allocate kernel stack.
   if((p->kstack = kalloc()) == 0){
@@ -283,7 +283,7 @@ scheduler(void)
       	continue;
        else{
        	count++;
-       	double wt = (p->priority)/(p->rounds);
+       	double wt = (p->priority+1)/((p->rounds)*1.0);
        	if(wt>Max_priority){
        		Max_priority = wt;
        		q=p;
@@ -295,6 +295,8 @@ scheduler(void)
 		release(&ptable.lock);
 		continue;
 	}
+	
+	// Equi weight processes are run in a round robin 
 	if(!first){
 		p = prev_proc;
 		p++;
@@ -302,7 +304,7 @@ scheduler(void)
 			if(p->state != RUNNABLE)
 				continue;
 			else{
-				double wt = (p->priority)/(p->rounds);
+				double wt = (p->priority+1)/((p->rounds)*1.0);
 				if(wt == Max_priority){
 					q=p;
 					break;
@@ -318,15 +320,17 @@ scheduler(void)
       q->state = RUNNING;
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
-      if(q->rounds<1){
-      	q->rounds=1;
+      if(proc->priority+1 == proc->rounds){
+      		for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      			if(p->state != RUNNABLE){
+      				continue;
+      			}
+      			else{
+      				p->rounds=1;
+      			}
+      		}
       }
-      else{
-      	q->rounds = q->rounds + 1;	
-      }
-      if(q->rounds>q->priority){
-      	q->rounds = 0.001;
-      }
+      q->rounds = q->rounds + 1;	
       prev_proc = proc;
 	  first = false;
 

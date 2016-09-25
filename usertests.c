@@ -583,6 +583,7 @@ fourfiles(void)
 void
 createdelete(void)
 {
+	setprio(10);
   enum { N = 20 };
   int pid, i, fd, pi;
   char name[32];
